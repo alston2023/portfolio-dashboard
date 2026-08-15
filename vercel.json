@@ -3,7 +3,6 @@
   "buildCommand": "npm run build:vercel",
   "outputDirectory": "vercel-dist",
   "rewrites": [
-    { "source": "/api/market-data", "destination": "/api/_market-data" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

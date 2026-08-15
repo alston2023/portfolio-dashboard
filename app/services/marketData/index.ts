@@ -5,6 +5,16 @@ export interface MarketResponse<T> { data: T; warnings?: string[]; }
 
 const CACHE_TTL = 5 * 60_000;
 
+async function readJson<T>(response: Response, fallbackMessage: string): Promise<T> {
+  const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+  if (!contentType.includes("application/json")) throw new Error("Market data service unavailable.");
+  let body: T & { error?: string };
+  try { body = await response.json() as T & { error?: string }; }
+  catch { throw new Error("Market data service unavailable."); }
+  if (!response.ok) throw new Error(body.error ?? fallbackMessage);
+  return body;
+}
+
 export class MarketDataService {
   private cache = new Map<string, { expires: number; value: Quote }>();
   private pending = new Map<string, Promise<unknown>>();
@@ -22,8 +32,7 @@ export class MarketDataService {
     if (q.length < 2) return { data: [] };
     return this.dedupe(`search:${q.toLowerCase()}`, async () => {
       const response = await fetch(`/api/market-data?action=search&q=${encodeURIComponent(q)}`);
-      const body = await response.json() as MarketResponse<AssetSearchResult[]> & { error?: string };
-      if (!response.ok) throw new Error(body.error ?? "Asset search is unavailable.");
+      const body = await readJson<MarketResponse<AssetSearchResult[]>>(response, "Asset search is unavailable.");
       for (const item of body.data) if (item.quote) this.cache.set(this.key(item), { expires: Date.now() + CACHE_TTL, value: item.quote });
       return body;
     });
@@ -42,8 +51,7 @@ export class MarketDataService {
     if (!missing.length) return { data: result };
     return this.dedupe(`quotes:${missing.map((asset) => this.key(asset)).sort().join(",")}`, async () => {
       const response = await fetch("/api/market-data", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "quotes", assets: missing }) });
-      const body = await response.json() as MarketResponse<Record<string, Quote>> & { error?: string };
-      if (!response.ok) throw new Error(body.error ?? "Quotes are unavailable.");
+      const body = await readJson<MarketResponse<Record<string, Quote>>>(response, "Quotes are unavailable.");
       for (const [key, quote] of Object.entries(body.data)) this.cache.set(key, { expires: Date.now() + CACHE_TTL, value: quote });
       return { data: { ...result, ...body.data }, warnings: body.warnings };
     });
@@ -54,8 +62,7 @@ export class MarketDataService {
   async getFxRate(pair = "USD/TWD"): Promise<MarketResponse<Quote>> {
     return this.dedupe(`fx:${pair}`, async () => {
       const response = await fetch(`/api/market-data?action=fx&pair=${encodeURIComponent(pair)}`);
-      const body = await response.json() as MarketResponse<Quote> & { error?: string };
-      if (!response.ok) throw new Error(body.error ?? "FX rate is unavailable.");
+      const body = await readJson<MarketResponse<Quote>>(response, "FX rate is unavailable.");
       return body;
     });
   }
