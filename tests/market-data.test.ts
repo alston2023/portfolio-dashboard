@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import type { AssetRef } from "../app/types/portfolio.ts";
 import { MarketDataService } from "../app/services/marketData/index.ts";
-import { handleMarketData } from "../server/market-data.ts";
+import { handleMarketData } from "../api/lib/market-data.ts";
 
 const json=(value:unknown)=>new Response(JSON.stringify(value),{status:200,headers:{"content-type":"application/json"}});
 test("market search maps Taiwan, US and crypto assets to their real providers",{concurrency:false},async()=>{

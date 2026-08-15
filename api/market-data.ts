@@ -1,4 +1,4 @@
-import { handleMarketData } from "../server/market-data.ts";
+import { handleMarketData } from "./lib/market-data";
 
 interface VercelRequest {
   method?: string;
